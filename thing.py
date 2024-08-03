@@ -23,7 +23,7 @@ def encode_image(image_path):
 def convertTemplate3():
     workbook = load_workbook(filename="template.xlsx")
     sheet = workbook.active
-    image = convert_from_path('thing.pdf')[0]
+    image = convert_from_path('2000 UNFI Dublin.pdf')[0]
     buffered = BytesIO()
     image.save("thing.jpeg")
     image_path = "thing.jpeg"
@@ -36,16 +36,16 @@ def convertTemplate3():
         "production date": string,
         "expected date": string,
         "quantities": [
-            quantity of cases of 8/64 oz Suntropics Mango Nectar,
-            quantity of cases of 8/64 oz Suntropics Guava Nectar,
-            quantity of cases of 8/64 oz  Suntropics Calamansi -,
-            quantity of cases of 8/64 oz  Suntropics Passion OJ Guava 100% Juice
+            EA quantity of cases of 8/64 oz Suntropics Mango Nectar,
+            EA quantity of cases of 8/64 oz Suntropics Guava Nectar,
+            EA quantity of cases of 8/64 oz  Suntropics Calamansi -,
+            EA quantity of cases of 8/64 oz  Suntropics Passion OJ Guava 100% Juice
         ],
         "item numbers": [
-            item number of 8/64 oz Suntropics Mango Nectar,
-            item number of 8/64 oz Suntropics Guava Nectar,
-            item number of 8/64 oz  Suntropics Calamansi -,
-            item number of 8/64 oz  Suntropics Passion OJ Guava 100% Juice
+            MFG item number of Suntropics Mango Nectar,
+            MFG item number of Suntropics Guava Nectar,
+            MFG item number of Suntropics Calamansi -,
+            MFG item number of Suntropics Passion OJ Guava 100% Juice
         ],
         costs: [
             cost of 8/64 oz Suntropics Mango Nectar,
@@ -105,8 +105,13 @@ def convertTemplate3():
     sheet.cell(row=23, column=5).value = responseJson["expected date"]
 
     # quantities and stuff
-
+    totalQuantity = 0
     for i in range(4):
+        try:
+            totalQuantity += float(responseJson["quantities"][i])
+        except Exception as e:
+            print(e)
+            pass
         sheet.cell(row=26+i, column=1).value = responseJson["quantities"][i]
 
     for i in range(4):
@@ -114,18 +119,18 @@ def convertTemplate3():
 
     for i in range(4):
         sheet.cell(row=26+i, column=6).value = responseJson["costs"][i]
-    temp = 0
+    totalCost = 0
     for i in range(4):
         try:
             print(responseJson["totalCosts"][i])
-            temp += float(responseJson["totalCosts"][i])
+            totalCost += float(responseJson["totalCosts"][i])
         except Exception as e:
             print(e)
             pass
         sheet.cell(row=26+i, column=7).value = responseJson["totalCosts"][i]
 
-    sheet.cell(row=30, column=1).value = responseJson["totalQuantity"]
-    sheet.cell(row=30, column=7).value = temp
+    sheet.cell(row=30, column=1).value = totalQuantity
+    sheet.cell(row=30, column=7).value = totalCost
     workbook.save("test.xlsx")
 
 
