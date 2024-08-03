@@ -21,11 +21,48 @@ def encode_image(image_path):
 
 
 def convertTemplate3():
+    workbook = load_workbook(filename="template.xlsx")
+    sheet = workbook.active
     image = convert_from_path('thing.pdf')[0]
     buffered = BytesIO()
     image.save("thing.jpeg")
     image_path = "thing.jpeg"
-
+    question = """Let's think step by step. With this image, find the date, billing address, and shipping address. Output your answer only in the following JSON format: 
+    templateDictionary = {
+        "date": string,
+        "bill to": string (with line breaks),
+        "ship to":string (with line breaks),
+        "PO#": string,
+        "production date": string,
+        "expected date": string,
+        "quantities": [
+            quantity of cases of 8/64 oz Suntropics Mango Nectar,
+            quantity of cases of 8/64 oz Suntropics Guava Nectar,
+            quantity of cases of 8/64 oz  Suntropics Calamansi -,
+            quantity of cases of 8/64 oz  Suntropics Passion OJ Guava 100% Juice
+        ],
+        "item numbers": [
+            item number of 8/64 oz Suntropics Mango Nectar,
+            item number of 8/64 oz Suntropics Guava Nectar,
+            item number of 8/64 oz  Suntropics Calamansi -,
+            item number of 8/64 oz  Suntropics Passion OJ Guava 100% Juice
+        ],
+        costs: [
+            cost of 8/64 oz Suntropics Mango Nectar,
+            cost of 8/64 oz Suntropics Guava Nectar,
+            cost of 8/64 oz  Suntropics Calamansi -,
+            cost of 8/64 oz  Suntropics Passion OJ Guava 100% Juice
+        ],
+        totalCosts: [
+            total/extended cost of 8/64 oz Suntropics Mango Nectar,
+            total/extended cost of 8/64 oz Suntropics Guava Nectar,
+            total/extended cost of 8/64 oz  Suntropics Calamansi -,
+            total/extended cost of 8/64 oz  Suntropics Passion OJ Guava 100% Juice
+        ],
+        totalQuantity: integer, 
+        
+        "
+    }"""
     # Getting the base64 string
     base64_image = encode_image(image_path)
 
@@ -35,7 +72,7 @@ def convertTemplate3():
             {"role": "user", "content": [
                 {
                     "type": "text",
-                    "text": "What's in this image?"
+                    "text": question
                 },
                 {
                     "type": "image_url",
@@ -48,7 +85,48 @@ def convertTemplate3():
         ]
     )
 
-    print(completion.choices[0].message.content)
+    response = str(completion.choices[0].message.content)
+    print(response)
+    json_match = re.search(json_regex, response, re.DOTALL)
+    responseJson = json.loads(json_match.group(0))
+    print(responseJson)
+    sheet.cell(row=8, column=5).value = responseJson["date"]
+    # split addresses
+    addresses = responseJson["bill to"].split("\n")
+    for i in range(len(addresses)):
+        sheet.cell(row=10 + i, column=5).value = addresses[i]
+
+    addresses = responseJson["ship to"].split("\n")
+    for i in range(len(addresses)):
+        sheet.cell(row=14 + i, column=5).value = addresses[i]
+
+    sheet.cell(row=20, column=5).value = responseJson["PO#"]
+    sheet.cell(row=21, column=5).value = responseJson["production date"]
+    sheet.cell(row=23, column=5).value = responseJson["expected date"]
+
+    # quantities and stuff
+
+    for i in range(4):
+        sheet.cell(row=26+i, column=1).value = responseJson["quantities"][i]
+
+    for i in range(4):
+        sheet.cell(row=26+i, column=3).value = responseJson["item numbers"][i]
+
+    for i in range(4):
+        sheet.cell(row=26+i, column=6).value = responseJson["costs"][i]
+    temp = 0
+    for i in range(4):
+        try:
+            print(responseJson["totalCosts"][i])
+            temp += float(responseJson["totalCosts"][i])
+        except Exception as e:
+            print(e)
+            pass
+        sheet.cell(row=26+i, column=7).value = responseJson["totalCosts"][i]
+
+    sheet.cell(row=30, column=1).value = responseJson["totalQuantity"]
+    sheet.cell(row=30, column=7).value = temp
+    workbook.save("test.xlsx")
 
 
 def convertTemplate2():
@@ -58,13 +136,50 @@ def convertTemplate2():
     image.save(buffered, format="png")
     img_str = base64.b64encode(buffered.getvalue())
     # print(img_str)
+    question = """With this image, find the date, billing address, and shipping address. Output your answer only in the following JSON format: 
+    templateDictionary = {
+        "date": string,
+        "bill to": string (with line breaks),
+        "ship to":string (with line breaks),
+        "PO#": string,
+        "production date": string,
+        "expected date": string,
+        "quantities": [
+            quantity of cases of 8/64 oz Suntropics Mango Nectar,
+            quantity of cases of 8/64 oz Suntropics Guava Nectar,
+            quantity of cases of 8/64 oz  Suntropics Calamansi -,
+            quantity of cases of 8/64 oz  Suntropics Passion OJ Guava 100% Juice
+        ],
+        "item numbers": [
+            item number of 8/64 oz Suntropics Mango Nectar,
+            item number of 8/64 oz Suntropics Guava Nectar,
+            item number of 8/64 oz  Suntropics Calamansi -,
+            item number of 8/64 oz  Suntropics Passion OJ Guava 100% Juice
+        ],
+        costs: [
+            cost of 8/64 oz Suntropics Mango Nectar,
+            cost of 8/64 oz Suntropics Guava Nectar,
+            cost of 8/64 oz  Suntropics Calamansi -,
+            cost of 8/64 oz  Suntropics Passion OJ Guava 100% Juice
+        ],
+        totalCosts: [
+            total cost of 8/64 oz Suntropics Mango Nectar,
+            total cost of 8/64 oz Suntropics Guava Nectar,
+            total cost of 8/64 oz  Suntropics Calamansi -,
+            total cost of 8/64 oz  Suntropics Passion OJ Guava 100% Juice
+        ],
+        totalQuantity: integer,
+        netCost: integer in dollars
+        
+        "
+    }"""
     completion = client.chat.completions.create(
         model="gpt-4o",
         messages=[
             {"role": "user", "content": [
                 {
                     "type": "text",
-                    "text": "What's in this image?"
+                    "text": question
                 },
                 {
                     "type": "image_url",
