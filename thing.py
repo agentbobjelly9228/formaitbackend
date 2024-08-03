@@ -1,13 +1,83 @@
-from openpyxl import load_workbook
-from langchain.document_loaders import PyPDFLoader
-from langchain.llms import OpenAI
-from langchain.chains.question_answering import load_qa_chain
-import xlrd
-import csv
 import pandas as pd
-import re
+import csv
+import xlrd
+from openpyxl import load_workbook
+from pdf2image import convert_from_path
+from io import BytesIO
+import base64
 import json
+import re
+from langchain.chains.question_answering import load_qa_chain
+from langchain.document_loaders import PyPDFLoader
+# from langchain.llms import OpenAI
+import openai
+client = openai.OpenAI()
 json_regex = r'\{.*?\}'
+
+
+def encode_image(image_path):
+    with open(image_path, "rb") as image_file:
+        return base64.b64encode(image_file.read()).decode('utf-8')
+
+
+def convertTemplate3():
+    image = convert_from_path('thing.pdf')[0]
+    buffered = BytesIO()
+    image.save("thing.jpeg")
+    image_path = "thing.jpeg"
+
+    # Getting the base64 string
+    base64_image = encode_image(image_path)
+
+    completion = client.chat.completions.create(
+        model="gpt-4o",
+        messages=[
+            {"role": "user", "content": [
+                {
+                    "type": "text",
+                    "text": "What's in this image?"
+                },
+                {
+                    "type": "image_url",
+                    "image_url": {
+                        "url": f"data:image/png;base64,{base64_image}"
+                    }
+                }
+            ]
+            }
+        ]
+    )
+
+    print(completion.choices[0].message.content)
+
+
+def convertTemplate2():
+    image = convert_from_path('thing.pdf')[0]
+    buffered = BytesIO()
+    image.save("thing.png")
+    image.save(buffered, format="png")
+    img_str = base64.b64encode(buffered.getvalue())
+    # print(img_str)
+    completion = client.chat.completions.create(
+        model="gpt-4o",
+        messages=[
+            {"role": "user", "content": [
+                {
+                    "type": "text",
+                    "text": "What's in this image?"
+                },
+                {
+                    "type": "image_url",
+                    "image_url": {
+                        "url": f"data:image/png;base64,{img_str}"
+                    }
+                }
+            ]
+            }
+        ]
+    )
+
+    print(completion.choices[0].message)
 
 
 def convertToTemplate():
@@ -26,6 +96,9 @@ def convertToTemplate():
         "date": (8, 5),
         "bill to": (10, 5),
         "ship to": (14, 5),
+        "PO#": (20, 5),
+        "production date": (21, 5),
+
     }
 
     # Locate your PDF here.
@@ -43,9 +116,41 @@ def convertToTemplate():
         "date": string,
         "bill to": string (with line breaks),
         "ship to":string (with line breaks),
+        "PO#": string,
+        "production date": string,
+        "expected date": string,
+        "quantities": [
+            quantity of cases of 8/64 oz Suntropics Mango Nectar,
+            quantity of cases of 8/64 oz Suntropics Guava Nectar,
+            quantity of cases of 8/64 oz  Suntropics Calamansi -,
+            quantity of cases of 8/64 oz  Suntropics Passion OJ Guava 100% Juice
+        ],
+        "item numbers": [
+            item number of 8/64 oz Suntropics Mango Nectar,
+            item number of 8/64 oz Suntropics Guava Nectar,
+            item number of 8/64 oz  Suntropics Calamansi -,
+            item number of 8/64 oz  Suntropics Passion OJ Guava 100% Juice
+        ],
+        costs: [
+            cost of 8/64 oz Suntropics Mango Nectar,
+            cost of 8/64 oz Suntropics Guava Nectar,
+            cost of 8/64 oz  Suntropics Calamansi -,
+            cost of 8/64 oz  Suntropics Passion OJ Guava 100% Juice
+        ],
+        totalCosts: [
+            total cost of 8/64 oz Suntropics Mango Nectar,
+            total cost of 8/64 oz Suntropics Guava Nectar,
+            total cost of 8/64 oz  Suntropics Calamansi -,
+            total cost of 8/64 oz  Suntropics Passion OJ Guava 100% Juice
+        ],
+        totalQuantity: integer,
+        netCost: integer in dollars
+        
+        "
     }"""
 
     response = str(chain.run(input_documents=documents, question=question))
+    print(response)
     json_match = re.search(json_regex, response, re.DOTALL)
     responseJson = json.loads(json_match.group(0))
     print(responseJson)
@@ -59,7 +164,28 @@ def convertToTemplate():
     for i in range(len(addresses)):
         sheet.cell(row=14 + i, column=5).value = addresses[i]
 
+    sheet.cell(row=20, column=5).value = responseJson["PO#"]
+    sheet.cell(row=21, column=5).value = responseJson["production date"]
+    sheet.cell(row=23, column=5).value = responseJson["expected date"]
+
+    # quantities and stuff
+
+    for i in range(4):
+        sheet.cell(row=26+i, column=1).value = responseJson["quantities"][i]
+
+    for i in range(4):
+        sheet.cell(row=26+i, column=3).value = responseJson["item numbers"][i]
+
+    for i in range(4):
+        sheet.cell(row=26+i, column=6).value = responseJson["costs"][i]
+
+    for i in range(4):
+        sheet.cell(row=26+i, column=7).value = responseJson["totalCosts"][i]
+
+    sheet.cell(row=30, column=1).value = responseJson["totalQuantity"]
+    sheet.cell(row=30, column=7).value = responseJson["netCost"]
     workbook.save("test.xlsx")
 
 
-convertToTemplate()
+# convertToTemplate()
+convertTemplate3()
